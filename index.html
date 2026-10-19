@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tidlom อี้จิง</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600&family=Noto+Serif+TC:wght@500;700&family=Trirong:wght@500;700&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="masthead">
+  <div class="wrap masthead-inner">
+    <div class="brand">
+      <span class="seal" aria-hidden="true">易</span>
+      <div>
+        <h1>Tidlom อี้จิง</h1>
+        <p class="tagline">เสี่ยงทายตามตัวบทโจวอี้ พร้อมคำอธิบายภาษาไทย</p>
+      </div>
+    </div>
+    <nav class="tabs" aria-label="เมนูหลัก">
+      <button type="button" class="tab" id="tab-cast" data-view="cast" aria-current="page">เสี่ยงทาย</button>
+      <button type="button" class="tab" id="tab-book" data-view="book">64 ฉั่ว</button>
+      <button type="button" class="tab" id="tab-history" data-view="history">ประวัติ</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="view-cast" class="view">
+    <form id="ask" class="ask">
+      <label for="question" class="label">คำถามของคุณ</label>
+      <textarea id="question" rows="2" maxlength="300" placeholder="เช่น ถ้าย้ายงานช่วงนี้ จะเป็นอย่างไร"></textarea>
+      <p class="hint">ตั้งคำถามแบบเปิด ถามว่า "จะเป็นอย่างไรถ้า..." ได้คำตอบชัดกว่าถามว่า "ใช่หรือไม่"</p>
+
+      <fieldset class="methods">
+        <legend class="label">วิธีเสี่ยง</legend>
+        <label class="method"><input type="radio" name="method" id="m-coin" value="coin" checked><span><b>เหรียญสามเหรียญ</b><small>โยน 6 ครั้ง ได้หนึ่งเส้นต่อครั้ง</small></span></label>
+        <label class="method"><input type="radio" name="method" id="m-yarrow" value="yarrow"><span><b>ก้านหญ้า 49 ก้าน</b><small>วิธีดั้งเดิม 大衍 แบ่งกอง 18 รอบ</small></span></label>
+        <label class="method"><input type="radio" name="method" id="m-manual" value="manual"><span><b>กรอกผลเอง</b><small>โยนเหรียญจริงแล้วใส่ค่าทีละเส้น</small></span></label>
+      </fieldset>
+
+      <div id="manual" class="manual" hidden>
+        <p class="hint">เลือกค่าจากล่างขึ้นบน หัวนับ 3 ก้อยนับ 2 รวมสามเหรียญ</p>
+        <div id="manual-rows" class="manual-rows"></div>
+      </div>
+
+      <div class="actions">
+        <button type="submit" id="start" class="primary">เริ่มเสี่ยงทาย</button>
+      </div>
+    </form>
+
+    <section id="casting" class="casting" hidden aria-live="polite">
+      <div class="casting-board">
+        <div id="build" class="hexdraw big" aria-label="เส้นที่ได้"></div>
+        <div class="casting-side">
+          <p id="cast-status" class="cast-status"></p>
+          <div id="cast-detail" class="cast-detail"></div>
+          <div class="actions">
+            <button type="button" id="cast-next" class="primary">โยนเส้นถัดไป</button>
+            <button type="button" id="cast-all" class="ghost">ทำที่เหลือให้ครบ</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="result" class="result" aria-live="polite"></section>
+  </section>
+
+  <section id="view-book" class="view" hidden>
+    <h2 class="section-title">คัมภีร์ 64 ฉั่ว</h2>
+    <p class="hint">เรียงตามลำดับพระเจ้าเหวิน แตะฉั่วเพื่ออ่านตัวบทและคำอธิบายครบทุกเส้น</p>
+    <div id="book-grid" class="book-grid"></div>
+    <div id="book-detail" class="book-detail"></div>
+  </section>
+
+  <section id="view-history" class="view" hidden>
+    <h2 class="section-title">ประวัติการเสี่ยงทาย</h2>
+    <p class="hint">เก็บไว้ในเบราว์เซอร์เครื่องนี้เท่านั้น</p>
+    <ol id="history-list" class="history-list"></ol>
+    <div class="actions"><button type="button" id="history-clear" class="ghost" hidden>ล้างประวัติ</button></div>
+    <p id="history-confirm" class="confirm" hidden>ลบประวัติทั้งหมดในเครื่องนี้?
+      <button type="button" id="history-yes" class="danger">ลบ</button>
+      <button type="button" id="history-no" class="ghost">ยกเลิก</button>
+    </p>
+  </section>
+</main>
+
+<footer class="wrap foot">
+  <p>ตัวบทจีนคือคัมภีร์โจวอี้ฉบับที่สืบทอดมา ซึ่งเป็นสาธารณสมบัติ คำอธิบายภาษาไทยเรียบเรียงใหม่เพื่อแอฟนี้ การตีความขึ้นกับผู้ถาม ใช้เป็นกระจกสะท้อนความคิด อย่าใช้แทนคำปรึกษาจากผู้เชี่ยวชาญ</p>
+</footer>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
