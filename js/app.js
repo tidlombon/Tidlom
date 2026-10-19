@@ -2,6 +2,7 @@ import {
   castCoinLine, castYarrowLine, resolve, readingGuide, hexagram, lineLabel,
   isChanging, isYang, LINE_NAMES, OLD_YIN, YOUNG_YANG, YOUNG_YIN, OLD_YANG,
 } from './divination.js';
+import { interpretPrompt, followupTurns, renderAnswer, errorCopy, PERMANENT_ERRORS } from './interpret.js';
 
 const $ = (sel) => document.querySelector(sel);
 const HISTORY_KEY = 'tidlom-iching-history';
@@ -103,9 +104,171 @@ function renderReading(entry, { sample = false } = {}) {
       <p class="guide-note">${guide.note}</p>
       ${passages}
     </div>
+    ${aiPanel()}
     <details class="full"><summary>ตัวบทเต็มของ ${p.n} ${p.th.name}</summary>${fullText(p, r.changing)}</details>
     ${c ? `<details class="full"><summary>ตัวบทเต็มของ ${c.n} ${c.th.name}</summary>${fullText(c)}</details>` : ''}
   `;
+  current = { entry, persisted: !sample };
+  wireAI();
+}
+
+// ---------- ตีความด้วย Claude ----------
+// ใช้ได้เมื่อเปิดผ่าน claude.ai ซึ่งให้ความสามารถ sample ไว้ใน window.claude
+const samplePromise = window.claude?.use ? window.claude.use('sample').catch(() => null) : Promise.resolve(null);
+let sampleFn;
+let current = null;
+let aiCtl = null;
+let aiBlocked = false;
+
+function aiPanel() {
+  return `<section class="ai" aria-labelledby="ai-title">
+    <div class="ai-head"><h3 id="ai-title">ตีความตามคำถามของคุณ</h3><span class="ai-badge">Claude</span></div>
+    <p class="hint" id="ai-intro">Claude จะอ่านตัวบทของทั้งสองฉั่วตามกฎจูซี แล้วโยงเข้ากับคำถามของคุณ ใช้โควตา Claude ของบัญชีคุณเอง</p>
+    <div class="actions">
+      <button type="button" id="ai-go" class="primary" disabled>ให้ Claude ตีความ</button>
+      <button type="button" id="ai-stop" class="ghost" hidden>หยุด</button>
+    </div>
+    <div id="ai-out" class="ai-out" aria-live="polite"></div>
+    <p id="ai-note" class="ai-note" hidden></p>
+    <div id="ai-chat" class="ai-chat"></div>
+    <form id="ai-follow" class="ai-follow" hidden>
+      <label for="ai-q" class="label">ถามต่อเกี่ยวกับผลนี้</label>
+      <div class="ai-follow-row">
+        <input id="ai-q" type="text" maxlength="300" placeholder="เช่น ถ้ารออีกสามเดือนจะดีกว่าไหม" autocomplete="off">
+        <button type="submit" id="ai-send" class="primary">ถาม</button>
+      </div>
+    </form>
+  </section>`;
+}
+
+function note(text) {
+  $('#ai-note').hidden = !text;
+  $('#ai-note').textContent = text || '';
+}
+
+function persistAI() {
+  if (!current?.persisted) return;
+  const list = loadHistory();
+  const i = list.findIndex((h) => h.t === current.entry.t);
+  if (i < 0) return;
+  list[i] = { ...list[i], ai: current.entry.ai, chat: current.entry.chat };
+  saveHistory(list);
+  renderHistory();
+}
+
+function renderChat() {
+  const chat = current.entry.chat || [];
+  $('#ai-chat').innerHTML = chat.map((t) => t.role === 'user'
+    ? `<p class="bubble me">${esc(t.content)}</p>`
+    : `<div class="bubble ai-out">${renderAnswer(t.content)}</div>`).join('');
+}
+
+function setBusy(busy) {
+  $('#ai-go').disabled = busy || aiBlocked || !sampleFn;
+  $('#ai-stop').hidden = !busy;
+  const send = $('#ai-send');
+  if (send) send.disabled = busy || aiBlocked;
+}
+
+function handleError(e, target) {
+  if (e?.code === 'cancelled') { note(e.text ? 'หยุดแล้ว คำตอบด้านบนยังไม่ครบ' : ''); return; }
+  if (PERMANENT_ERRORS.has(e?.code)) aiBlocked = true;
+  if (e?.code === 'refused') target.innerHTML = '';
+  note(errorCopy(e?.code));
+}
+
+async function interpret() {
+  const entry = current.entry;
+  aiCtl = new AbortController();
+  const out = $('#ai-out');
+  out.innerHTML = '<p class="thinking">Claude กำลังอ่านตัวบท...</p>';
+  note('');
+  setBusy(true);
+  try {
+    const opts = { signal: aiCtl.signal, onText: ({ text: t }) => { out.innerHTML = renderAnswer(t); } };
+    // กดตีความใหม่ต้องได้คำตอบใหม่ ไม่ใช่คำตอบเดิมจากแคช
+    if (entry.ai) opts.cache = false;
+    const { text, truncated } = await sampleFn(interpretPrompt(entry), opts);
+    out.innerHTML = renderAnswer(text);
+    entry.ai = text;
+    entry.chat = [];
+    renderChat();
+    persistAI();
+    if (truncated) note('คำตอบถูกตัดเพราะยาวเกิน ลองถามต่อในหัวข้อที่อยากรู้เพิ่ม');
+  } catch (e) {
+    out.innerHTML = e?.text ? renderAnswer(e.text) : '';
+    handleError(e, out);
+  } finally {
+    setBusy(false);
+    $('#ai-go').textContent = entry.ai ? 'ตีความใหม่' : 'ให้ Claude ตีความ';
+    $('#ai-follow').hidden = !entry.ai || aiBlocked;
+  }
+}
+
+async function followUp(ev) {
+  ev.preventDefault();
+  const entry = current.entry;
+  const q = $('#ai-q').value.trim();
+  if (!q || !entry.ai) return;
+  const chat = entry.chat || (entry.chat = []);
+  const turns = followupTurns(entry, entry.ai, chat, q);
+  chat.push({ role: 'user', content: q });
+  $('#ai-q').value = '';
+  renderChat();
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble ai-out';
+  bubble.innerHTML = '<p class="thinking">กำลังคิด...</p>';
+  $('#ai-chat').append(bubble);
+  aiCtl = new AbortController();
+  note('');
+  setBusy(true);
+  try {
+    const { text } = await sampleFn(turns, {
+      signal: aiCtl.signal, cache: false,
+      onText: ({ text: t }) => { bubble.innerHTML = renderAnswer(t); },
+    });
+    chat.push({ role: 'assistant', content: text });
+    persistAI();
+    renderChat();
+  } catch (e) {
+    if (e?.text) chat.push({ role: 'assistant', content: e.text });
+    else chat.pop();
+    renderChat();
+    if (!e?.text) $('#ai-q').value = q;
+    handleError(e, bubble);
+  } finally {
+    setBusy(false);
+    $('#ai-follow').hidden = aiBlocked;
+  }
+}
+
+function wireAI() {
+  const entry = current.entry;
+  aiCtl?.abort();
+  if (entry.ai) {
+    $('#ai-out').innerHTML = renderAnswer(entry.ai);
+    $('#ai-go').textContent = 'ตีความใหม่';
+    $('#ai-follow').hidden = false;
+    renderChat();
+  }
+  $('#ai-go').addEventListener('click', interpret);
+  $('#ai-stop').addEventListener('click', () => aiCtl?.abort());
+  $('#ai-follow').addEventListener('submit', followUp);
+  const panel = $('.ai');
+  samplePromise.then((fn) => {
+    if (!panel.isConnected) return;
+    sampleFn = fn;
+    if (!fn) {
+      $('#ai-go').hidden = true;
+      $('#ai-follow').hidden = true;
+      note(entry.ai
+        ? 'คำตีความนี้บันทึกไว้ก่อนหน้า การตีความใหม่ใช้ได้เมื่อเปิดแอฟผ่านลิงก์ claude.ai'
+        : 'การตีความด้วย Claude ใช้ได้เมื่อเปิดแอฟผ่านลิงก์ claude.ai ส่วนตัวบทและคำอธิบายด้านบนใช้ได้ทุกที่');
+      return;
+    }
+    if (aiBlocked) note(errorCopy('not_granted'));
+    setBusy(false);
+  });
 }
 
 // ---------- ขั้นตอนเสี่ยงทาย ----------
@@ -214,7 +377,8 @@ function renderHistory() {
     return `<li><button type="button" class="history-item" data-i="${i}">
       ${drawHex(e.lines, 'small')}
       <span class="txt"><span class="q">${esc(e.q || 'ไม่ได้ระบุคำถาม')}</span>
-      <small>${p.n} ${p.th.name}${c ? ` → ${c.n} ${c.th.name}` : ''} · ${when}</small></span></button></li>`;
+      <small>${p.n} ${p.th.name}${c ? ` → ${c.n} ${c.th.name}` : ''} · ${when}</small></span>
+      ${e.ai ? '<span class="ai-mark">มีคำตีความ</span>' : ''}</button></li>`;
   }).join('');
 }
 
