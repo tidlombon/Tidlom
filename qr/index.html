@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tidlom QR</title>
+<meta name="description" content="สร้าง QR Code ฟรี ไม่มีโฆษณา ไม่หมดอายุ ทำงานในเครื่องคุณทั้งหมด">
+<meta name="theme-color" content="#14532d">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <h1>Tidlom QR</h1>
+    <p>สร้าง QR Code ฟรี ไม่มีโฆษณา ไม่หมดอายุ ข้อมูลไม่ออกจากเครื่องคุณ</p>
+  </header>
+
+  <div class="grid">
+    <section class="card" aria-label="ข้อมูล">
+      <div class="tabs" role="tablist" id="tabs">
+        <button role="tab" data-type="url" aria-selected="true">ลิงก์</button>
+        <button role="tab" data-type="text" aria-selected="false">ข้อความ</button>
+        <button role="tab" data-type="wifi" aria-selected="false">Wi-Fi</button>
+        <button role="tab" data-type="phone" aria-selected="false">โทรศัพท์</button>
+        <button role="tab" data-type="email" aria-selected="false">อีเมล</button>
+      </div>
+
+      <div class="pane" data-pane="url">
+        <label>ที่อยู่เว็บ<input id="url" type="text" inputmode="url" placeholder="example.com" autocomplete="off"></label>
+      </div>
+      <div class="pane" data-pane="text" hidden>
+        <label>ข้อความ<textarea id="text" rows="5" placeholder="พิมพ์อะไรก็ได้"></textarea></label>
+      </div>
+      <div class="pane" data-pane="wifi" hidden>
+        <label>ชื่อ Wi-Fi (SSID)<input id="ssid" type="text" autocomplete="off"></label>
+        <label>รหัสผ่าน<input id="pass" type="text" autocomplete="off"></label>
+        <label>การเข้ารหัส
+          <select id="enc">
+            <option value="WPA">WPA/WPA2/WPA3</option>
+            <option value="WEP">WEP</option>
+            <option value="nopass">ไม่มีรหัสผ่าน</option>
+          </select>
+        </label>
+        <label class="check"><input id="hidden" type="checkbox"> เครือข่ายซ่อนชื่อ</label>
+      </div>
+      <div class="pane" data-pane="phone" hidden>
+        <label>เบอร์โทร<input id="phone" type="tel" placeholder="0812345678" autocomplete="off"></label>
+      </div>
+      <div class="pane" data-pane="email" hidden>
+        <label>ถึง<input id="to" type="email" autocomplete="off"></label>
+        <label>หัวข้อ<input id="subject" type="text" autocomplete="off"></label>
+        <label>เนื้อหา<textarea id="body" rows="3"></textarea></label>
+      </div>
+
+      <details>
+        <summary>ปรับแต่ง</summary>
+        <div class="opts">
+          <label>สีลาย<input id="fg" type="color" value="#000000"></label>
+          <label>สีพื้น<input id="bg" type="color" value="#ffffff"></label>
+          <label>ความทนต่อรอยเสียหาย
+            <select id="ecc">
+              <option value="L">ต่ำ (L) ลายเบาที่สุด</option>
+              <option value="M" selected>กลาง (M)</option>
+              <option value="Q">สูง (Q)</option>
+              <option value="H">สูงมาก (H)</option>
+            </select>
+          </label>
+          <label>ขอบ (ช่อง)<input id="margin" type="number" min="0" max="10" value="4"></label>
+          <label>ขนาด PNG (px)
+            <select id="size">
+              <option>512</option><option selected>1024</option><option>2048</option>
+            </select>
+          </label>
+        </div>
+      </details>
+    </section>
+
+    <section class="card out" aria-label="ผลลัพธ์">
+      <div id="preview" class="preview" role="img" aria-label="QR Code"></div>
+      <p id="msg" class="msg" aria-live="polite">พิมพ์ข้อมูลเพื่อสร้าง QR</p>
+      <div class="actions">
+        <button id="dl-png" disabled>ดาวน์โหลด PNG</button>
+        <button id="dl-svg" disabled>ดาวน์โหลด SVG</button>
+        <button id="copy" disabled>คัดลอกรูป</button>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    QR ที่สร้างเป็นแบบคงที่ ข้อมูลฝังอยู่ในภาพเอง จึงไม่มีวันหมดอายุและไม่ต้องพึ่งเซิร์ฟเวอร์ของใคร
+  </footer>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>
